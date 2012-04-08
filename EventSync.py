@@ -38,6 +38,9 @@ Repeat until the number of matched pairs stops changing. Then halve
 the error parameter and continue until a pre-specified error level is
 reached.
 
+To see debugging text or figures, set EventSync.EVENTSYNC_DEBUG or 
+EventSync.EVENTSYNC_DEBUG_FIGURE to True
+
 """
 from numpy import polyval, polyfit
 from scipy.special import ndtr
