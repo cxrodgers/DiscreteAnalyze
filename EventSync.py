@@ -49,6 +49,41 @@ EVENTSYNC_DEBUG_FIGURE = False
 
 
 class UnmatchedFit:
+    """An object to hold links between two event trains.
+    
+    This object handles the bookkeeping for the best matching between
+    two trains and provides convenient access functions for the mapping.
+    
+    My attributes
+    x : Event train 1
+    y : Event train 2 (not necessarily the same size as x)
+    coeffs : a polynomial mapping from times in x to estimated times in y
+    yhat : estimated times in y
+    error_term : maximum cutoff for error between a value in y and its
+        estimated value in yhat, to be considered the same point
+    
+    The update() method will estimate yhat, and choose an optimal one-to-one
+    mapping from matched samples from x and y, such that the maximum error
+    in y is less than error_term. If multiple pairs satisfy the constraint,
+    the one that has the smallest error is chosen.
+    
+    xi2yi : dict mapping index into x to index into y
+    xi2resid : dict mapping index into x to the prediction error
+    yi2xi : inverse of xi2yi
+    yi2resid : yi -> xi2resid[yi2xi[yi]]
+    
+    You can change x, y, error_term, or coeffs and then call update() again.
+    The old map will be wiped and replaced with a new one.
+    
+    Some other convenient access properties
+    xi2yi_table
+    matched_xi
+    etc
+    
+    len(obj) gives the number of matches. Note that this is usually less
+    than len(obj.x) and len(obj.y), because not all data points will be
+    matched (in general).
+    """
     def __init__(self, x=None, y=None, coeffs=None, error_term=None):
         self.x = x
         self.y = y
@@ -130,9 +165,6 @@ class UnmatchedFit:
 
     def _update_map(self, xi, yi, resid):
         """If xi<-->yi is a good match, store"""
-        # Error checking
-        #self._check_map_consistency(xi, yi)
-        
         # Do nothing if doesn't satisfy condition
         if abs(resid) > self.error_term:
             return
@@ -169,17 +201,7 @@ class UnmatchedFit:
             self.xi2resid[xi] = resid            
             self.yi2xi[yi] = xi
             self.yi2resid[yi] = resid
-    
-    def _check_map_consistency(self, xi, yi):
-        """Check that internal maps are consistent for specified xi and yi"""
-        if xi in self.xi2yi:        
-            assert xi in self.xi2resid
-            assert yi in self.yi2xi
-            assert yi in self.yi2resid
-        else:
-            assert xi not in self.xi2resid
-            assert yi not in self.yi2xi
-            assert yi not in self.yi2resid            
+
 
 def sync(timestamps1, timestamps2, min_acceptable_error=.1,
     error_term_factor=1.5, gross_delay_scales=None,
