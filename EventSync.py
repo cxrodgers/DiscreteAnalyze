@@ -45,6 +45,7 @@ EventSync.EVENTSYNC_DEBUG_FIGURE to True
 from numpy import polyval, polyfit
 from scipy.special import ndtr
 import numpy as np
+import sys
 import PointProc
 
 EVENTSYNC_DEBUG = False
@@ -228,9 +229,10 @@ def sync(timestamps1, timestamps2, min_acceptable_error=.1,
             gross_delay_scales_start = np.mean([
                 np.median(np.diff(sorted(timestamps1))),
                 np.median(np.diff(sorted(timestamps2)))])
-        
+        print n_scales
         gross_delay_scales = gross_delay_scales_start * (
             gross_delay_scales_factor ** (-np.arange(n_scales)))
+        print gross_delay_scales
     
     # Estimate gross delay: amount to delay ts2 to fit ts1
     gross_delay_samples, gross_delay_sec, gross_delay_error = \
@@ -241,6 +243,7 @@ def sync(timestamps1, timestamps2, min_acceptable_error=.1,
     if EVENTSYNC_DEBUG:
         print "STEP 1: delay %0.3f at scale %0.3f" % (
             gross_delay_sec, gross_delay_error)
+        sys.stdout.flush()
 
     # Step 2
     # Create fit object from data
@@ -259,6 +262,7 @@ def sync(timestamps1, timestamps2, min_acceptable_error=.1,
         if EVENTSYNC_DEBUG:
             print "S i%d %0.5f %d" % (inum, fit.error_term, len(fit))
             print fit.coeffs
+            sys.stdout.flush()
         inum += 1
 
         # Step 2a/2b inner loop inside this function
@@ -273,6 +277,7 @@ def sync(timestamps1, timestamps2, min_acceptable_error=.1,
             if EVENTSYNC_DEBUG:
                 print "S i%d %0.5f %d !" % (inum, fit.error_term, len(fit))
                 print fit.coeffs     
+                sys.stdout.flush()
             break
     
     if inum == max_iter:
@@ -298,6 +303,7 @@ def matching_linfit_loop_to_stable(fit=None, x=None, y=None, error_term=1.0,
         if EVENTSYNC_DEBUG:
             print "MLLTS i%d %d" % (inum, len(fit))
             print fit.coeffs
+            sys.stdout.flush()
 
         # Update fit
         fit = matching_linfit(fit)
@@ -306,7 +312,8 @@ def matching_linfit_loop_to_stable(fit=None, x=None, y=None, error_term=1.0,
             # Stability reached
             if EVENTSYNC_DEBUG:
                 print "MLLTS i%d %d !" % (inum, len(fit))
-                print fit.coeffs            
+                print fit.coeffs     
+                sys.stdout.flush()                
             break
     
         # Set up next iteration
@@ -417,8 +424,9 @@ def estimate_delay(sig1, sig2):
     # Now see how good the correlation is
     best = C.max()
     argbest = np.argmax(C) # number of zeros to prepend to smaller sig
-    z = (best - C.mean()) / C.std()
-    pval = (1 - ndtr(z)) * len(C)
+    z = (best - np.median(C)) / C.std()
+    pval = (1 - ndtr(z))
+    pval = 1 - ((1 - pval) ** len(C))
     
     # Subtract off the length of sig1
     res = argbest - len(sig2) + 1
@@ -426,13 +434,18 @@ def estimate_delay(sig1, sig2):
     if EVENTSYNC_DEBUG_FIGURE:
         import matplotlib.pyplot as plt
         f = plt.figure()
-        ax = f.add_subplot(111)
+        ax = f.add_subplot(121)
         ax.plot(sig1)
         ax.plot(range(res, res + len(sig2)), sig2)
         ax.set_xlim((res, res + len(sig2)))
+        
+        ax = f.add_subplot(122)
+        ax.hist(C, bins=100)
+        plt.show()
     
     if EVENTSYNC_DEBUG:
         print ("corr %0.3f at %d (%d) z=%0.2f pval %0.3f" % 
             (best, argbest, res, z, pval))
+        sys.stdout.flush()
     
     return res, pval
