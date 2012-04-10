@@ -120,7 +120,6 @@ class testDataset1(unittest.TestCase):
             clock_sync_guess=.9966361, n_scales=4)
         
         self.assertTrue(len(fit) > 40)
-        self.assertTrue(np.all(np.diff(fit.xi2yi_table) == -156))
         self.assertTrue(fit.xi2yi[42] == 0)
         self.assertTrue(fit.xi2yi[580] == 51)
     
