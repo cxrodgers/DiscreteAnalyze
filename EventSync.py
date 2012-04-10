@@ -41,6 +41,41 @@ reached.
 To see debugging text or figures, set EventSync.EVENTSYNC_DEBUG or 
 EventSync.EVENTSYNC_DEBUG_FIGURE to True
 
+Current issues:
+1) It takes a long time to come up with the initial guess for the fit,
+especially if the assumed temporal dilation is slightly wrong. The problem
+is identifying when the peak corr is "significantly good". Right now I approx
+the distribution of corrs as normal and take the peak z-score p-value, corrected
+for the number of points, but this is not a good estimate of this distribution
+and therefore even good fits have bad p-values.
+2) If the initial guess is not quite right, then the iterative fitting will
+drop the points furthest out, then refit on remaining points, and so on,
+continuing to drop points until very few are left.
+Also, mismatch errors are not corrected. If the matching is wrong, the new
+fit just reinforces this.
+One way around this would be to do the linear fitting on all the
+(non one-to-one) matches within error_term. In fact this is almost certainly
+the right thing to do. Then stop descending when the fit is unique since we
+won't get any better.
+
+Short term fix: give it a good starting guess for temporal dilation and
+all should be fine.
+
+Potential longer term answers:
+1) Estimate delay at scale S, then matching linfit at scale S, then use
+the dilation and offset parameters at next lower scale S-1, etc. This is
+probably okay as long as the starting scale is close enough to the right
+scale so that the values are reasonable.
+(Started this in sync2, works a little better but does not resolve
+the matching problem.)
+2) Search method ... search over ranges of delay and dilation and maximize
+the number of points fit.
+3) Perhaps combine the two. At each scale, estimate gross delay and then
+define the search limits based on the scale. Then test all fits in the region
+and choose best. Use that as the center point for the next smaller scale
+At each scale, use the dilation from the previous linfit, and the intercept
+from the previous acorr, since these methods are optimized for those params.
+
 """
 from numpy import polyval, polyfit
 from scipy.special import ndtr
@@ -127,6 +162,18 @@ class UnmatchedFit:
     def __len__(self):
         return len(self.xi2yi)
     
+    def diagnostic(self):
+        mxi = self.matched_xi
+        myi = self.matched_yi
+        s = 'found %d matches, ' + \
+            '%d/%d in x (min: %d, max: %d, inrange: %d), ' + \
+            '%d/%d in y (min: %d, max: %d, inrange: %d)'
+        print s % (len(self), 
+            len(self.matched_x), len(self.x),
+            mxi.min(), mxi.max(), mxi.max() - mxi.min() + 1,
+            len(self.matched_y), len(self.y),
+            myi.min(), myi.max(), myi.max() - myi.min() + 1)
+    
     @property
     def xi2yi_table(self):
         # Consider memoizing this if running slowly
@@ -207,6 +254,51 @@ class UnmatchedFit:
             self.yi2resid[yi] = resid
 
 
+def sync2(timestamps1, timestamps2, min_acceptable_error=.1,
+    error_term_factor=1.5, gross_delay_scales=None,
+    gross_delay_scales_start=None, gross_delay_scales_factor=2.0, n_scales=10,
+    p_thresh=.05, clock_sync_guess=1.0, max_iter=100):
+    """Top-level function to sync up two sets of timestamps.
+    
+    Step 1) Estimate gross delay with cross-correlation
+    Step 2) Use this as the initial call to matching linfit. Set
+    error term to the estimation error from Step 1.
+        Step 2a) Update fit, count number of matches
+        Step 2b) If number of matches changes, repeat 2a
+    Step 3) If error term is less than global error term, stop. Otherwise,
+    lower error term and return to step 2.
+    """
+    # Step 1
+    # which scales to operate at
+    if gross_delay_scales is None:        
+        if gross_delay_scales_start is None:
+            # Choose starting scale from data
+            gross_delay_scales_start = np.mean([
+                np.median(np.diff(sorted(timestamps1))),
+                np.median(np.diff(sorted(timestamps2)))])
+        gross_delay_scales = gross_delay_scales_start * (
+            gross_delay_scales_factor ** (-np.arange(n_scales)))
+    
+    # Estimate gross delay: amount to delay ts2 to fit ts1
+    dilation = clock_sync_guess
+    for scale in gross_delay_scales:
+        print scale
+        gross_delay_samples, gross_delay_sec, gross_delay_error = \
+            smooth_and_estimate_delay(
+                dilation*timestamps1, timestamps2,
+                scales=[scale], p_thresh=p_thresh)
+        
+        fit = UnmatchedFit(x=timestamps1, y=timestamps2, 
+            error_term=gross_delay_error*2, coeffs=[dilation, -gross_delay_sec])
+        
+        fit.update()
+        print fit.coeffs
+        
+        new_coeffs = np.polyfit(fit.matched_x, fit.matched_y, deg=1)
+        print new_coeffs
+        dilation = new_coeffs[0]
+        fit.diagnostic()
+
 def sync(timestamps1, timestamps2, min_acceptable_error=.1,
     error_term_factor=1.5, gross_delay_scales=None,
     gross_delay_scales_start=None, gross_delay_scales_factor=2.0, n_scales=10,
@@ -229,10 +321,8 @@ def sync(timestamps1, timestamps2, min_acceptable_error=.1,
             gross_delay_scales_start = np.mean([
                 np.median(np.diff(sorted(timestamps1))),
                 np.median(np.diff(sorted(timestamps2)))])
-        print n_scales
         gross_delay_scales = gross_delay_scales_start * (
             gross_delay_scales_factor ** (-np.arange(n_scales)))
-        print gross_delay_scales
     
     # Estimate gross delay: amount to delay ts2 to fit ts1
     gross_delay_samples, gross_delay_sec, gross_delay_error = \
