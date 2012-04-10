@@ -19,9 +19,9 @@ def smooth_at_scale(timestamps, scale, oversample_ratio=4, t_min=None,
         n_ssig : discretized time of the smoothed signal (fs=OSR/scale))
         x_ssig : smoothed values at times in n_ssig
     """
-    if not t_min:
+    if t_min is None:
         t_min = timestamps.min()
-    if not t_max:
+    if t_max is None:
         t_max = timestamps.max()
     
     # Scale the signal in time
@@ -96,9 +96,9 @@ def smooth_event_train(timestamps, filter_std=10,
         x_op[timestamp - start_sample + n_gauss] += x_gauss
     
     # default behavior: truncate to timestamps
-    if not n_min:
+    if n_min is None:
         n_min = timestamps.min()
-    if not n_max:
+    if n_max is None:
         n_max = timestamps.max()
     
     # Now truncate if necessary
