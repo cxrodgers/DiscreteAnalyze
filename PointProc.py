@@ -73,6 +73,14 @@ def smooth_event_train(timestamps, filter_std=10,
     # Convert timestamps to integers for use in indexing
     timestamps = np.asarray(timestamps, dtype=np.int)
     
+    # Deal with edge case
+    if len(timestamps) == 0:
+        if n_min is None or n_max is None:
+            raise ValueError("empty timestamps and no specified time frame")
+        n_op = np.arange(n_min, n_max + 1, dtype=np.int)
+        x_op = np.zeros_like(n_op)
+        return n_op, x_op
+    
     # Determine the range of the output
     # n_min, n_max are the requested bounds for result
     # start_sample, stop_sample are the bounds used for internal calculation
