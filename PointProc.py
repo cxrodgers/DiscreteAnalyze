@@ -52,42 +52,53 @@ def smooth_event_train(timestamps, filter_std=10,
     
     timestamps: array of time values in samples when events occurred
     filter_std: Standard deviation (width) of the Gaussian, in samples.
+        Can be a non-integer number of samples.
     filter_truncation_width: Where to truncate the Gaussian, in samples.
-        Default is 5 standard deviations.
+        This must be an integer number of samples. Default is the closest
+        integer to 5 * `filter_std`.
     n_min : Extend or truncate returned values to start at this.
         Default: first timestamp
     n_max : Extend or truncate returned values to stop at this.
+        Inclusive, unlike Python indexing.
         Default: last timestamp
     
     Returns: n_op, x_op
     n_op: the sample number of each point. 
     x_op: the value of the smoothed function at each sample.        
     """
-    
     # Finalize the default values of parameters    
     if filter_truncation_width is None: 
-        filter_truncation_width = 5*filter_std
+        filter_truncation_width = np.rint(5 * filter_std).astype(np.int)
     
     # Convert timestamps to integers for use in indexing
     timestamps = np.asarray(timestamps, dtype=np.int)
     
     # Determine the range of the output
+    # n_min, n_max are the requested bounds for result
+    # start_sample, stop_sample are the bounds used for internal calculation
     start_sample = np.min(timestamps) - filter_truncation_width
     stop_sample = np.max(timestamps) + filter_truncation_width
     
-    # Make it bigger if necessary
+    # Make it bigger if necessary, for instance because more was requested
+    # than necessary
     if n_min is not None and n_min < start_sample:
+        # More requested on left than necessary
         start_sample = n_min
     if n_max is not None and n_max > stop_sample:
+        # More requested on right than necessary
         stop_sample = n_max
 
     # generate normalized gaussian on n_gauss and x_gauss
+    # here is why filter_truncation_width must be an integer, but filter_std
+    # doesn't.
     n_gauss = np.arange(-filter_truncation_width,
         filter_truncation_width + 1)
     x_gauss = np.exp( -(np.float64(n_gauss) ** 2) / (2 * filter_std**2) )
     x_gauss = x_gauss / np.sum(x_gauss)
     
-    # initialize return variables        
+    # initialize return variables 
+    # We do calculation on full range from start_sample to stop_sample
+    # And will truncate to n_min, n_max later
     n_op = np.arange(start_sample, stop_sample + 1)
     x_op = np.zeros(n_op.shape) # value, float64
     
@@ -108,8 +119,8 @@ def smooth_event_train(timestamps, filter_std=10,
         n_op = n_op[truncate_start:]
     if n_max < n_op[-1] and n_max > n_op[0]:
         truncate_stop = np.where(n_op == n_max)[0]
-        x_op = x_op[:truncate_stop]
-        n_op = n_op[:truncate_stop]
+        x_op = x_op[:truncate_stop + 1]
+        n_op = n_op[:truncate_stop + 1]
     
     return (n_op, x_op)
 
