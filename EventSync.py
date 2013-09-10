@@ -87,6 +87,11 @@ EVENTSYNC_DEBUG = False
 EVENTSYNC_DEBUG_FIGURE = False
 
 
+def invert_linear_poly(p):
+    """Helper function for inverting fit.coeffs"""
+    return np.array([1, -p[1]]).astype(np.float) / p[0]
+
+
 class UnmatchedFit:
     """An object to hold links between two event trains.
     
@@ -189,6 +194,18 @@ class UnmatchedFit:
         
         assert np.all(table1 == table2)
         return table1
+    
+    @property
+    def nan_x2y_table(self):
+        """Like x2y_table, but with NaN for umatched entries"""
+        pass
+        res = []
+        for xi in len(range(self.x)):
+            if xi in fit.xi2yi:
+                res.append(xi, fit.xi2yi[xi])
+            else:
+                res.append(None, )
+            
     
     @property
     def yi2xi_table(self):
@@ -298,6 +315,8 @@ def sync2(timestamps1, timestamps2, min_acceptable_error=.1,
         print new_coeffs
         dilation = new_coeffs[0]
         fit.diagnostic()
+    
+    return fit
 
 def sync(timestamps1, timestamps2, min_acceptable_error=.1,
     error_term_factor=1.5, gross_delay_scales=None,
