@@ -122,11 +122,11 @@ def smooth_event_train(timestamps, filter_std=10,
     
     # Now truncate if necessary
     if n_min > n_op[0] and n_min < n_op[-1]:
-        truncate_start = np.where(n_op == n_min)[0]
+        truncate_start = np.where(n_op == n_min)[0][0]
         x_op = x_op[truncate_start:]
         n_op = n_op[truncate_start:]
     if n_max < n_op[-1] and n_max > n_op[0]:
-        truncate_stop = np.where(n_op == n_max)[0]
+        truncate_stop = np.where(n_op == n_max)[0][0]
         x_op = x_op[:truncate_stop + 1]
         n_op = n_op[:truncate_stop + 1]
     
