@@ -79,6 +79,11 @@ from the previous acorr, since these methods are optimized for those params.
 """
 from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
+from builtins import zip
+from builtins import range
+from builtins import object
+from past.utils import old_div
 from numpy import polyval, polyfit
 from scipy.special import ndtr
 import numpy as np
@@ -91,10 +96,10 @@ EVENTSYNC_DEBUG_FIGURE = False
 
 def invert_linear_poly(p):
     """Helper function for inverting fit.coeffs"""
-    return np.array([1, -p[1]]).astype(np.float) / p[0]
+    return old_div(np.array([1, -p[1]]).astype(np.float), p[0])
 
 
-class UnmatchedFit:
+class UnmatchedFit(object):
     """An object to hold links between two event trains.
     
     This object handles the bookkeeping for the best matching between
@@ -184,8 +189,8 @@ class UnmatchedFit:
     @property
     def xi2yi_table(self):
         # Consider memoizing this if running slowly
-        table1 = np.array(self.xi2yi.items())
-        table2 = np.array(self.yi2xi.items())
+        table1 = np.array(list(self.xi2yi.items()))
+        table2 = np.array(list(self.yi2xi.items()))
         table2 = table2[:, ::-1]
         
         # Sort by xi
@@ -202,7 +207,7 @@ class UnmatchedFit:
         """Like x2y_table, but with NaN for umatched entries"""
         pass
         res = []
-        for xi in len(range(self.x)):
+        for xi in len(list(range(self.x))):
             if xi in fit.xi2yi:
                 res.append(xi, fit.xi2yi[xi])
             else:
@@ -381,7 +386,7 @@ def sync(timestamps1, timestamps2, min_acceptable_error=.1,
         
         if fit.error_term > min_acceptable_error * 1.00001:
             # Set up next iteration
-            fit.error_term = max(fit.error_term/error_term_factor, 
+            fit.error_term = max(old_div(fit.error_term,error_term_factor), 
                 min_acceptable_error)
         else:
             # fit found!
@@ -535,7 +540,7 @@ def estimate_delay(sig1, sig2):
     # Now see how good the correlation is
     best = C.max()
     argbest = np.argmax(C) # number of zeros to prepend to smaller sig
-    z = (best - np.median(C)) / C.std()
+    z = old_div((best - np.median(C)), C.std())
     pval = (1 - ndtr(z))
     pval = 1 - ((1 - pval) ** len(C))
     
@@ -547,7 +552,7 @@ def estimate_delay(sig1, sig2):
         f = plt.figure()
         ax = f.add_subplot(121)
         ax.plot(sig1)
-        ax.plot(range(res, res + len(sig2)), sig2)
+        ax.plot(list(range(res, res + len(sig2))), sig2)
         ax.set_xlim((res, res + len(sig2)))
         
         ax = f.add_subplot(122)

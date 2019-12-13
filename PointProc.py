@@ -1,10 +1,15 @@
 """Methods to analyze/visualize point processes"""
+from __future__ import division
+from builtins import zip
+from builtins import range
+from builtins import object
+from past.utils import old_div
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 def intscale(x, scale):
-    return np.rint(x / scale).astype(np.int)
+    return np.rint(old_div(x, scale)).astype(np.int)
 
 def smooth_at_scale(timestamps, scale, oversample_ratio=4, t_min=None, 
     t_max=None):
@@ -25,7 +30,7 @@ def smooth_at_scale(timestamps, scale, oversample_ratio=4, t_min=None,
         t_max = timestamps.max()
     
     # Scale the signal in time
-    factor = float(scale) / oversample_ratio
+    factor = old_div(float(scale), oversample_ratio)
     sig = intscale(timestamps, factor)
     n_min = intscale(t_min, factor)
     n_max = intscale(t_max, factor)
@@ -101,8 +106,8 @@ def smooth_event_train(timestamps, filter_std=10,
     # doesn't.
     n_gauss = np.arange(-filter_truncation_width,
         filter_truncation_width + 1)
-    x_gauss = np.exp( -(np.float64(n_gauss) ** 2) / (2 * filter_std**2) )
-    x_gauss = x_gauss / np.sum(x_gauss)
+    x_gauss = np.exp( old_div(-(np.float64(n_gauss) ** 2), (2 * filter_std**2)) )
+    x_gauss = old_div(x_gauss, np.sum(x_gauss))
     
     # initialize return variables 
     # We do calculation on full range from start_sample to stop_sample
@@ -133,7 +138,7 @@ def smooth_event_train(timestamps, filter_std=10,
     return (n_op, x_op)
 
 
-class MultiscaleSmoother:
+class MultiscaleSmoother(object):
     def __init__(self, timestamps=None, scales=None, oversample_ratio=4,
         n_levels=4):
         # store defaults
@@ -147,8 +152,8 @@ class MultiscaleSmoother:
     
     def _define_scales(self):
         if self.scales is None:
-            coarsest_scale = np.median(np.diff(self.timestamps)) / 2.0
-            self.scales = [coarsest_scale / (2 ** n) 
+            coarsest_scale = old_div(np.median(np.diff(self.timestamps)), 2.0)
+            self.scales = [old_div(coarsest_scale, (2 ** n)) 
                 for n in range(self.n_levels)]    
         
         if np.any(self.scales == 0):
@@ -175,7 +180,7 @@ class MultiscaleSmoother:
             self.x_l.append(x_ssig)
             self.t_l.append(n_ssig * float(scale) / self.oversample_ratio)
 
-class MultiscalePlotter:
+class MultiscalePlotter(object):
     def __init__(self, data=None):
         """Initialize a plotter on a smoother"""
         self.data = data
