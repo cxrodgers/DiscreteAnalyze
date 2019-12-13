@@ -77,11 +77,13 @@ At each scale, use the dilation from the previous linfit, and the intercept
 from the previous acorr, since these methods are optimized for those params.
 
 """
+from __future__ import print_function
+from __future__ import absolute_import
 from numpy import polyval, polyfit
 from scipy.special import ndtr
 import numpy as np
 import sys
-import PointProc
+from . import PointProc
 
 EVENTSYNC_DEBUG = False
 EVENTSYNC_DEBUG_FIGURE = False
@@ -173,11 +175,11 @@ class UnmatchedFit:
         s = 'found %d matches, ' + \
             '%d/%d in x (min: %d, max: %d, inrange: %d), ' + \
             '%d/%d in y (min: %d, max: %d, inrange: %d)'
-        print s % (len(self), 
+        print(s % (len(self), 
             len(self.matched_x), len(self.x),
             mxi.min(), mxi.max(), mxi.max() - mxi.min() + 1,
             len(self.matched_y), len(self.y),
-            myi.min(), myi.max(), myi.max() - myi.min() + 1)
+            myi.min(), myi.max(), myi.max() - myi.min() + 1))
     
     @property
     def xi2yi_table(self):
@@ -299,7 +301,7 @@ def sync2(timestamps1, timestamps2, min_acceptable_error=.1,
     # Estimate gross delay: amount to delay ts2 to fit ts1
     dilation = clock_sync_guess
     for scale in gross_delay_scales:
-        print scale
+        print(scale)
         gross_delay_samples, gross_delay_sec, gross_delay_error = \
             smooth_and_estimate_delay(
                 dilation*timestamps1, timestamps2,
@@ -309,10 +311,10 @@ def sync2(timestamps1, timestamps2, min_acceptable_error=.1,
             error_term=gross_delay_error*2, coeffs=[dilation, -gross_delay_sec])
         
         fit.update()
-        print fit.coeffs
+        print(fit.coeffs)
         
         new_coeffs = np.polyfit(fit.matched_x, fit.matched_y, deg=1)
-        print new_coeffs
+        print(new_coeffs)
         dilation = new_coeffs[0]
         fit.diagnostic()
     
@@ -350,8 +352,8 @@ def sync(timestamps1, timestamps2, min_acceptable_error=.1,
             scales=gross_delay_scales, p_thresh=p_thresh)
     
     if EVENTSYNC_DEBUG:
-        print "STEP 1: delay %0.3f at scale %0.3f" % (
-            gross_delay_sec, gross_delay_error)
+        print("STEP 1: delay %0.3f at scale %0.3f" % (
+            gross_delay_sec, gross_delay_error))
         sys.stdout.flush()
 
     # Step 2
@@ -369,8 +371,8 @@ def sync(timestamps1, timestamps2, min_acceptable_error=.1,
     inum = 0
     while inum < max_iter:
         if EVENTSYNC_DEBUG:
-            print "S i%d %0.5f %d" % (inum, fit.error_term, len(fit))
-            print fit.coeffs
+            print("S i%d %0.5f %d" % (inum, fit.error_term, len(fit)))
+            print(fit.coeffs)
             sys.stdout.flush()
         inum += 1
 
@@ -384,13 +386,13 @@ def sync(timestamps1, timestamps2, min_acceptable_error=.1,
         else:
             # fit found!
             if EVENTSYNC_DEBUG:
-                print "S i%d %0.5f %d !" % (inum, fit.error_term, len(fit))
-                print fit.coeffs     
+                print("S i%d %0.5f %d !" % (inum, fit.error_term, len(fit)))
+                print(fit.coeffs)     
                 sys.stdout.flush()
             break
     
     if inum == max_iter:
-        print "warning: max iterations exceed in `sync`"
+        print("warning: max iterations exceed in `sync`")
     
     return fit
     
@@ -410,8 +412,8 @@ def matching_linfit_loop_to_stable(fit=None, x=None, y=None, error_term=1.0,
     current_table = fit.xi2yi_table.copy()
     while inum < max_iter:
         if EVENTSYNC_DEBUG:
-            print "MLLTS i%d %d" % (inum, len(fit))
-            print fit.coeffs
+            print("MLLTS i%d %d" % (inum, len(fit)))
+            print(fit.coeffs)
             sys.stdout.flush()
 
         # Update fit
@@ -420,8 +422,8 @@ def matching_linfit_loop_to_stable(fit=None, x=None, y=None, error_term=1.0,
         if np.all(fit.xi2yi_table == current_table):
             # Stability reached
             if EVENTSYNC_DEBUG:
-                print "MLLTS i%d %d !" % (inum, len(fit))
-                print fit.coeffs     
+                print("MLLTS i%d %d !" % (inum, len(fit)))
+                print(fit.coeffs)     
                 sys.stdout.flush()                
             break
     
@@ -430,7 +432,7 @@ def matching_linfit_loop_to_stable(fit=None, x=None, y=None, error_term=1.0,
         inum += 1
     
     if inum == max_iter:
-        print "warning: matching_linfit_loop_to_stable did not converge"
+        print("warning: matching_linfit_loop_to_stable did not converge")
     
     return fit
 
@@ -511,7 +513,7 @@ def smooth_and_estimate_delay(timestamps1, timestamps2, scales,
             break
 
     if pval > p_thresh:
-        print "warning: did not achieve criterion during syncing"
+        print("warning: did not achieve criterion during syncing")
 
     return delay_samples, delay_sec, scale
     

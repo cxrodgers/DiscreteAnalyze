@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import numpy as np
 import unittest
-import EventSync
+from . import EventSync
 
 class test1(unittest.TestCase):
     """Tests sign and offset of delay.
